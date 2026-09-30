@@ -25,9 +25,7 @@ Given a query that matches at least one listing, the agent completes all three
 tool calls and returns a fit card — in at least 4 of 5 tries.
 
 **Why this target:**
-<!-- Why 4 of 5 and not 5 of 5? Something about your search, probably —
-     "my search is a plain keyword match and some phrasings will miss" is a
-     real answer. -->
+Parsing and search don't use the model, so they give the same result every time. The two tools after them call the model twice, and a slow or empty reply on either call ends the run without a fit card. I allow one of those in five tries. A bad parse is a second risk: my regex only knows a few ways of saying a price, so "under thirty bucks" gets no price limit.
 
 ---
 
@@ -37,66 +35,55 @@ Given a query that matches no listings, the agent stops before calling
 `suggest_outfit` and returns a message naming what to change — 5 of 5 tries.
 
 **Why this target:**
-<!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
-     about this path? -->
+The whole path up to the branch uses no model: regex parsing, a keyword search, and an `if` on an empty list. The same query takes the same path every time, so there is no randomness to allow for. One failure out of five would mean the branch itself is wrong.
 
 ---
 
 ## 3. Something about state
 
-<!-- YOU WRITE THIS ONE.
+Given a query that matches at least one listing, one listing is used from start to finish, in 5 of 5 tries. Three things show this:
 
-     How would you know that the item your search found is the same item the
-     next tool received? Name something countable or observable.
-
-     This is the criterion people find hardest, because state failure doesn't
-     look like state failure — it looks like a tool problem. Something that
-     compares session["selected_item"] against what actually reached
-     suggest_outfit is the shape you're after. -->
-
-
+- `session["selected_item"]["id"]` equals `session["search_results"][0]["id"]`.
+- The item in the trace's `suggest_outfit` input line and in its `create_fit_card` input line has that listing's `title`, `price`, and `platform`.
+- The fit card names no other listing's title.
 
 **Why this target:**
-
-
+The item goes from the session into both tools through plain Python, with no model involved, so there is no randomness to allow for. If a single try shows two different items, something in the loop overwrote the session. That's a bug, not bad luck. The third check is the only one that depends on the model. Captions are written from one item's details, so a card naming a different listing would mean the wrong item reached the tool.
 
 ---
 
 ## 4. Something about the fit card
 
-<!-- YOU WRITE THIS ONE.
+The same matching query is run 5 times. At least 4 of the 5 fit cards meet all four of these conditions:
 
-     The fit card calls a model, so the same input can produce different words
-     each time. That's not a bug — it's the nature of the tool. So what would
-     make it acceptable?
+- The card is 2–4 sentences long.
+- It contains the item's price as a dollar amount (e.g. `$24`).
+- It contains the platform name, ignoring case (e.g. `depop`).
+- It does not use the listing's `description` text word for word.
 
-     Think about what you'd actually be unhappy to see. A caption that never
-     mentions the price? Two different items producing the same opening
-     sentence? A card longer than a caption anyone would post? Any of those can
-     be turned into a number. -->
-
-
+On top of that, no two of the 5 cards are identical word for word.
 
 **Why this target:**
-
-
+The model decides the wording, and it can legitimately write "24 bucks" or leave the platform out of a casual caption. So I allow one miss in five. I don't lower the target any further, because the prompt asks for the price and platform directly. The "no two identical" rule is 5 of 5. Identical cards mean caching is on or `TEMPERATURE` is 0, which is a settings mistake, not model variation.
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
+Five queries are each run once. Each query sets a size, a price limit, or both. Four examples:
 
-     Pick something you actually care about getting right. Speed, the empty
-     wardrobe path, what happens when the model can't be reached, whether the
-     search respects a price ceiling — anything, as long as it names a number
-     or an observable outcome. -->
+- `graphic tee size M under $30`
+- `jacket size S`
+- `sneakers size US 9`
+- `jeans under $40`
 
+For every listing in `session["search_results"]`, both of these hold in 5 of 5 queries:
 
+- `price` is at or below the price limit.
+- The requested size is one whole size of the listing's `size` field, under the rule in the README's Tool Inventory. No `XL` comes back for `L`, and no `US 9` comes back for `S`.
 
 **Why this target:**
-
-
+Both filters are plain comparisons in `search_listings`, with no model involved. Filtering also happens before scoring, so keyword phrasing can't let an out-of-range listing through. Shoes shown to someone who asked for a small top look like a broken search, and a price over their limit breaks the one promise they gave us. So even one bad result in one query counts as a fail.
 
 ---
 
