@@ -13,6 +13,8 @@ Build and test your three tools in `tools.py` first. Then come here.
     python agent.py          runs both example paths below
 """
 
+import re
+
 import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
@@ -106,10 +108,113 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, wardrobe)
+    count = 0
 
-    # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
-    return session
+    # Each pass looks at what the session holds so far and runs the one step
+    # that comes next. The loop ends when a branch returns.
+    while True:
+        count += 1
+        trace.check_iterations(count)
+
+        if not session["parsed"]:
+            session["parsed"] = parse_query(query)
+
+        elif not session["search_results"]:
+            parsed = session["parsed"]
+            session["search_results"] = search_listings(
+                parsed["description"],
+                size=parsed["size"],
+                max_price=parsed["max_price"],
+            )
+            # The branch: nothing to style, so stop before suggest_outfit.
+            if not session["search_results"]:
+                session["error"] = _no_results_message(parsed)
+                return session
+
+        elif session["selected_item"] is None:
+            session["selected_item"] = session["search_results"][0]
+
+        elif session["outfit_suggestion"] is None:
+            session["outfit_suggestion"] = suggest_outfit(
+                session["selected_item"], session["wardrobe"]
+            )
+
+        elif session["fit_card"] is None:
+            session["fit_card"] = create_fit_card(
+                session["outfit_suggestion"], session["selected_item"]
+            )
+
+        else:
+            return session
+
+
+# ── query parsing ─────────────────────────────────────────────────────────────
+
+# "under $30", "below 25", "less than $40.50", "max $20", "$30"
+_PRICE_RE = re.compile(
+    r"(?:(?:under|below|less than|max(?:imum)?|up to|no more than)\s*\$?|\$)\s*"
+    r"(\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+
+# "size M", "size S/M", "size US 9", "size W30 L30", "size medium"
+_SIZE_RE = re.compile(
+    r"\bsize\s+([a-z0-9./]+(?:\s+l?\d+(?:\.\d+)?)?)",
+    re.IGNORECASE,
+)
+
+_SIZE_WORDS = {
+    "small": "S",
+    "medium": "M",
+    "large": "L",
+    "one": "One Size",
+}
+
+
+def parse_query(query: str) -> dict:
+    """
+    Pull a description, a size, and a max_price out of a plain-language query.
+
+    Regex, not the model: the price and size phrasings are predictable, and a
+    parser that doesn't call the model is one you can test for free. Whatever
+    is left after removing the price and size phrases is the description.
+
+    Returns:
+        {"description": str, "size": str | None, "max_price": float | None}
+    """
+    description = query
+    max_price = None
+    size = None
+
+    price_match = _PRICE_RE.search(description)
+    if price_match:
+        max_price = float(price_match.group(1))
+        description = description.replace(price_match.group(0), " ")
+
+    size_match = _SIZE_RE.search(description)
+    if size_match:
+        size = size_match.group(1).strip(" .,")
+        size = _SIZE_WORDS.get(size.lower(), size)
+        description = description.replace(size_match.group(0), " ")
+
+    description = re.sub(r"\s+", " ", description).strip(" ,.")
+    return {"description": description, "size": size, "max_price": max_price}
+
+
+def _no_results_message(parsed: dict) -> str:
+    """Say what the search used, and what the user could loosen."""
+    used = [f'"{parsed["description"]}"']
+    fixes = ["try broader or different keywords (e.g. \"jacket\" instead of a specific style)"]
+    if parsed["size"]:
+        used.append(f"size {parsed['size']}")
+        fixes.append("drop the size or try a neighbouring one")
+    if parsed["max_price"] is not None:
+        used.append(f"under ${parsed['max_price']:g}")
+        fixes.append("raise your price limit")
+    return (
+        f"No listings matched {', '.join(used)}. "
+        f"To find something, {'; '.join(fixes)}."
+    )
 
 
 # ── running it directly ───────────────────────────────────────────────────────
