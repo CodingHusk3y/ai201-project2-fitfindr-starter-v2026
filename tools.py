@@ -20,7 +20,9 @@ That last line is what your loop branches on. "Returns a list" earns nothing —
 the description has to say what is *in* the list.
 """
 
-import config  # noqa: F401 — you'll use this in search_listings
+import re
+
+import config
 from generate import generate
 from utils.data_loader import load_listings
 
@@ -78,8 +80,105 @@ def search_listings(
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
-    # TODO: replace this with your implementation
-    return []
+    listings = load_listings()
+
+    if max_price is not None:
+        listings = [l for l in listings if l["price"] <= max_price]
+
+    if size:
+        listings = [l for l in listings if _size_matches(size, l["size"])]
+
+    query_words = _keywords(description)
+    if not query_words:
+        return []
+
+    scored = []
+    for listing in listings:
+        score = _score(query_words, listing)
+        if score > 0:
+            scored.append((score, listing))
+
+    # sorted() is stable, so ties keep the dataset's order
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    return [listing for _, listing in scored[: config.SEARCH_RESULT_LIMIT]]
+
+
+# Words that carry no signal about what the user wants to buy.
+_STOPWORDS = {
+    "a", "an", "and", "the", "for", "with", "in", "on", "of", "to", "or",
+    "some", "something", "i", "im", "want", "need", "looking", "find", "me",
+    "my", "like", "that", "is", "it", "any", "under", "size",
+}
+
+# How much a keyword hit in each field counts toward a listing's score.
+_FIELD_WEIGHTS = {
+    "title": 3,
+    "style_tags": 2,
+    "category": 2,
+    "colors": 2,
+    "brand": 2,
+    "description": 1,
+}
+
+
+def _normalize_word(word: str) -> str:
+    """Lowercase and strip a plural 's' so 'tees' matches 'tee'."""
+    word = word.lower()
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        word = word[:-1]
+    return word
+
+
+def _keywords(text: str) -> set[str]:
+    """Split text into normalized keywords, dropping stopwords."""
+    words = re.findall(r"[a-z0-9]+", text.lower())
+    return {_normalize_word(w) for w in words if w not in _STOPWORDS}
+
+
+def _score(query_words: set[str], listing: dict) -> int:
+    """Weighted count of query keywords that appear in each listing field."""
+    fields = {
+        "title": listing["title"],
+        "style_tags": " ".join(listing["style_tags"]),
+        "category": listing["category"],
+        "colors": " ".join(listing["colors"]),
+        "brand": listing["brand"] or "",  # brand is None for most listings
+        "description": listing["description"],
+    }
+    score = 0
+    for field, text in fields.items():
+        hits = query_words & _keywords(text)
+        score += len(hits) * _FIELD_WEIGHTS[field]
+    return score
+
+
+def _size_tokens(size: str) -> set[str]:
+    """
+    Break a size string into the whole sizes it stands for.
+
+    "S/M" → {"S/M", "S", "M"}, "W30 L30" → {"W30 L30", "W30", "L30"},
+    "XL (oversized)" → {"XL"}, "US 8.5" → {"US 8.5", "US", "8.5"}.
+    Parenthetical notes are dropped.
+    """
+    size = re.sub(r"\(.*?\)", "", size).upper().strip()
+    tokens = {size}
+    for part in size.split("/"):
+        part = part.strip()
+        if part:
+            tokens.add(part)
+            tokens.update(part.split())
+    return tokens
+
+
+def _size_matches(wanted: str, listing_size: str) -> bool:
+    """
+    True when the requested size is one of the listing's whole sizes.
+
+    Case-insensitive, and never a substring test: "M" matches "S/M" and
+    "M/L", but "S" does not match "US 9" and "L" does not match "XL".
+    """
+    wanted = re.sub(r"\s+", " ", wanted).upper().strip()
+    return wanted in _size_tokens(listing_size)
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
