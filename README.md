@@ -41,6 +41,7 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
+FitFindr helps you shop secondhand. You type what you're looking for in plain language, such as "vintage graphic tee under $30, size M". It searches 40 thrift listings from Depop, ThredUp, and Poshmark for that item, size, and price, then picks the best match. Next it suggests one or two outfits that pair the find with clothes you already own, and writes a short caption you could post about it. If nothing matches, it stops before the outfit step and tells you what to loosen: the keywords, the size, or the price limit.
 
 
 ---
@@ -193,15 +194,15 @@ Can't write a fit card yet: no outfit suggestion was given for Vintage Levi's 50
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked Claude to check my implementation of the `search_listings`. The docstring warns that a plain substring test lets `"s"` match `"US 9"` and `"l"` match `"XL"`.
+- *What came back:* A size filter that splits each listing's size into whole tokens, so `"M"` matches `"S/M"` but `"L"` doesn't match `"XL"`. It made one call without asking me: `"One Size"` items only match a request for "one size". It also flagged that "graphic tee" brought back a pair of cargo pants, ranked low, because "graphic" or "tee" appeared in the pants' description.
+- *What I changed:* I kept One Size strict, and I wrote the full size rule into my Tool Inventory so the decision is on record instead of hidden in code. I also wrote the spec for the other two tools before building them, which I hadn't done for search.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked Claude to check my code for `create_fit_card` and run it three times on the same item to check that the captions come out different.
+- *What came back:* The first try crashed with a stack trace: Gemini returned `503 UNAVAILABLE` ("high demand"), and the tool raised `ModelUnavailable`. It also pointed out that `CACHE_ENABLED` is on by default, so with the cache on, all three runs would have come back word for word the same even with `TEMPERATURE` at 0.9.
+- *What I changed:* I kept the cache on in the code, since it saves calls while building, and ran the three-times test with `AI201_CACHE=0` instead. That gave three different captions. I put the stack trace on my list for unit 4: a bad network or key should print a message, not a traceback, so `run_agent` needs a `ModelUnavailable` handler.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
