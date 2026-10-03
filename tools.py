@@ -211,8 +211,69 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    items = wardrobe.get("items") or []
+    item_text = _describe_item(new_item)
+
+    if not items:
+        prompt = (
+            f"Someone is thinking about buying this thrifted piece:\n{item_text}\n\n"
+            "They haven't told us what's in their wardrobe. Give general styling "
+            "advice: two outfit ideas built around this piece, naming the kinds of "
+            "pieces it pairs well with (e.g. 'straight-leg dark jeans', 'chunky "
+            "white sneakers'). Keep it under 120 words, plain text, no headings."
+        )
+        fallback = (
+            f"Style the {new_item['title']} with simple basics in neutral colors "
+            "and let it be the statement piece."
+        )
+    else:
+        wardrobe_text = "\n".join(f"- {_describe_wardrobe_item(w)}" for w in items)
+        prompt = (
+            f"Someone is thinking about buying this thrifted piece:\n{item_text}\n\n"
+            f"Here is what they already own:\n{wardrobe_text}\n\n"
+            "Suggest one or two complete outfits built around the new piece. Use "
+            "only pieces from their wardrobe, and name each one exactly as it's "
+            "written above. Say in a sentence why each outfit works. Keep it "
+            "under 150 words, plain text, no headings."
+        )
+        fallback = (
+            f"Try the {new_item['title']} with {items[0]['name']} for an easy "
+            "starting point."
+        )
+
+    system = (
+        "You are a stylist who works with thrifted clothes. Be specific and "
+        "practical. Never invent wardrobe pieces the user didn't list."
+    )
+    # The model can come back empty; the spec says this never returns "".
+    return generate(prompt, system=system) or fallback
+
+
+def _describe_item(item: dict) -> str:
+    """One listing as prompt text. Brand is left out when it's None."""
+    lines = [
+        f"Title: {item['title']}",
+        f"Category: {item['category']}",
+        f"Colors: {', '.join(item['colors'])}",
+        f"Style: {', '.join(item['style_tags'])}",
+        f"Size: {item['size']}",
+        f"Condition: {item['condition']}",
+        f"Price: ${item['price']:.2f} on {item['platform']}",
+    ]
+    if item.get("brand"):
+        lines.insert(1, f"Brand: {item['brand']}")
+    return "\n".join(lines)
+
+
+def _describe_wardrobe_item(item: dict) -> str:
+    """One wardrobe piece as a single prompt line."""
+    text = (
+        f"{item['name']} ({item['category']}; {', '.join(item['colors'])}; "
+        f"{', '.join(item['style_tags'])})"
+    )
+    if item.get("notes"):
+        text += f" — {item['notes']}"
+    return text
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
@@ -251,5 +312,27 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    if not outfit or not outfit.strip():
+        return (
+            "Can't write a fit card yet: no outfit suggestion was given for "
+            f"{new_item['title']}."
+        )
+
+    prompt = (
+        f"Write a caption for a social post about this thrift find:\n"
+        f"{_describe_item(new_item)}\n\n"
+        f"How it's being styled:\n{outfit}\n\n"
+        "Rules:\n"
+        "- 2 to 4 sentences, first person, casual, like a real post.\n"
+        f"- Mention the item, the price written as ${new_item['price']:g}, and "
+        f"the platform ({new_item['platform']}) once each.\n"
+        "- Be specific about the vibe of the outfit, not generic.\n"
+        "- Don't copy the listing text. No hashtags, no emoji lists, no quotes "
+        "around the caption."
+    )
+    system = "You write short, natural captions for outfit posts."
+    caption = generate(prompt, system=system)
+    return caption or (
+        f"Picked up the {new_item['title']} for ${new_item['price']:g} on "
+        f"{new_item['platform']} and it already has a place in my rotation."
+    )

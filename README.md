@@ -117,18 +117,39 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+$ python -c "from tools import search_listings; print([(l['title'], l['size'], l['price']) for l in search_listings('graphic tee', max_price=30)])"
+[('Graphic Tee — 2003 Tour Bootleg Style', 'L', 24.0), ('Y2K Baby Tee — Butterfly Print', 'S/M', 18.0), ('Vintage Band Tee — Faded Grey', 'L', 19.0), ('Vintage Graphic Hoodie — Faded Black', 'L', 26.0), ('Mesh Long-Sleeve Top — Black', 'S/M', 15.0), ('Low-Rise Cargo Pants — Khaki', 'W29', 27.0), ('Oversized Crewneck Sweatshirt — Vintage Navy', 'XL (fits oversized)', 20.0)]
 
+$ python -c "from tools import search_listings; print(search_listings('designer ballgown', size='XXS', max_price=5))"
+[]
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+Outfit one pairs the vintage Levi's 501 jeans with the white ribbed tank top, the vintage black denim jacket, and the chunky white sneakers, finished with the brown leather belt. This outfit works because the fitted white tank balances the straight-leg vintage denim, while the cropped black jacket and chunky sneakers nail an effortless streetwear aesthetic.
 
+Outfit two pairs the vintage Levi's 501 jeans with the oversized grey crewneck sweatshirt, the black combat boots, and the brown leather belt. This outfit works because tucking the front of the super-sized grey sweatshirt into the mid-wash jeans creates a balanced silhouette, and the black lace-up boots add a sharp grunge edge to the classic denim.
+
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_empty_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_empty_wardrobe()))"
+For a casual streetwear look, pair these medium wash 501s with a relaxed grey cotton crewneck sweatshirt and low-profile canvas skate sneakers. Add a worn-in black leather belt to break up the waist and carry a canvas tote bag.
+
+For a sharper vintage-inspired outfit, tuck a fitted black ribbed turtleneck into the waistband. Layer an oversized plaid flannel overshirt worn unbuttoned on top, and finish the look with dark leather ankle boots. Roll the denim cuffs once or twice to show off the boots and create a clean, intentional silhouette.
 ```
 
-```
-$ python -c "from tools import create_fit_card; ..."
+Run three times on the same item with caching off (`AI201_CACHE=0`), so each try is a real model call. `TEMPERATURE` is 0.9. All three captions are different:
 
+```
+$ AI201_CACHE=0 python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
+Scored these vintage Levi's 501s on depop for just $38 and I'm obsessed with the wash. Threw them on with my beat-up white sneakers for an effortless weekend errands kind of vibe. Nothing beats a perfectly worn-in pair of denim.
+
+$ AI201_CACHE=0 python -c "...same command..."
+Scored these vintage Levi's 501 jeans for just $38 over on depop and they fit like an absolute dream. I kept it super effortless today by pairing the broken-in indigo denim with some crisp white sneakers for that classic 90s running-errands look. Nothing beats finding a perfectly faded pair that's already soft from day one.
+
+$ AI201_CACHE=0 python -c "...same command..."
+Scored these classic medium wash Vintage Levi's 501 Jeans for just $38 over on depop and they fit like an absolute dream. I threw them on with my favorite crisp white sneakers for that effortlessly cool, 90s streetwear look that never misses. Honestly, finding denim with this kind of broken-in fade in the wild is always a massive win.
+
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('   ', load_listings()[0]))"
+Can't write a fit card yet: no outfit suggestion was given for Vintage Levi's 501 Jeans — Medium Wash.
 ```
 
 ---
