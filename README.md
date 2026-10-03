@@ -94,9 +94,20 @@
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex, in `agent.py::parse_query`. No model is involved, so the same query always parses the same way.
+- **Price:** one pattern finds `under $30`, `below 25`, `less than $40`, `max $20`, `up to $50`, or a bare `$30`, and the number becomes `max_price` (float).
+- **Size:** a second pattern finds `size` followed by a size, such as `size M`, `size S/M`, `size US 8.5`, or `size W30 L30`. That becomes `size` (str). The words small, medium, and large become `S`, `M`, and `L`.
+- **Description:** both matched phrases are cut out of the query, and what's left is the `description`. So `"vintage graphic tee under $30, size M"` parses to `{"description": "vintage graphic tee", "size": "M", "max_price": 30.0}`. If there's no price or size phrase, that field is `None`.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** On each pass, `run_agent` fills the first empty field and writes the result back to the session. Every tool reads its inputs from the session, never from the previous call's return value.
+1. `query`: set when the session is created. `wardrobe` is set at the same time.
+2. `parsed`: what `parse_query(query)` returns.
+3. `search_results`: what `search_listings` returns. It is called with `parsed["description"]`, `parsed["size"]`, and `parsed["max_price"]`. If this list is empty, `error` is set and the run stops here.
+4. `selected_item`: `search_results[0]`.
+5. `outfit_suggestion`: what `suggest_outfit` returns. It is called with `selected_item` and `wardrobe`.
+6. `fit_card`: what `create_fit_card` returns. It is called with `outfit_suggestion` and `selected_item`.
+
+`error` stays `None` on a run that finishes. Both later tools receive the same `selected_item` object. I checked this by wrapping the tools and comparing the item each one received against `session["selected_item"]`.
 
 ---
 
@@ -110,8 +121,25 @@
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30, size M'
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
 
+  Outfit:   Outfit one pairs the Y2K Baby Tee — Butterfly Print with Baggy straight-leg jeans, dark wash, Chunky white sneakers, and the Black crossbody bag. This outfit works because the tight, cropped silhouette of the baby tee balances the volume of the dark denim, nailing a classic Y2K streetwear look.
+
+Outfit two combines the Y2K Baby Tee — Butterfly Print with Wide-leg khaki trousers, the Vintage black denim jacket, and Black combat boots. This outfit works because layering the slightly cropped black jacket over the pastel graphic top grounds the cottagecore sweetness with an edgy contrast, while the trousers add a relaxed minimalist touch.
+
+  Fit card: Scored this dreamy butterfly baby tee for just $18 on depop and I've been living in it. I love balancing the fitted crop with baggy dark wash denim and chunky sneakers for an effortless Y2K street style. Or, if I'm feeling a little more edge, I throw on a vintage black jacket and combat boots to tone down the pastel sweetness.
+
+0 model calls this session, 2 served from cache
+```
+
+The same app with a query that matches nothing stops after the search:
+
+```
+$ python app.py ask 'designer ballgown size XXS under $5'
+  No listings matched "designer ballgown", size XXS, under $5. To find something, try broader or different keywords (e.g. "jacket" instead of a specific style); drop the size or try a neighbouring one; raise your price limit.
+
+0 model calls this session
 ```
 
 **The three tools, tested one at a time**
