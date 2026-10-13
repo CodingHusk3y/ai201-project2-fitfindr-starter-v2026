@@ -224,16 +224,53 @@ Can't write a fit card yet: no outfit suggestion was given for Vintage Levi's 50
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. One item stays in session and both model tools | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card meets content and variation rules | 4 of 5 plus no duplicates | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Size and price filters hold for five queries | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
 ```
+Source: results/run_2026-10-13_1921_before.md, produced by run_eval.py::main
+and agent.py::run_agent.
+
+Criterion 1, matching query completes, Try 1:
+- stopped early: no
+- selected_item: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+- search_results: 10
+Fit card:
+Scored this 2003 tour bootleg tee for just $24 on depop and I've already worn it two ways. I love leaning into full grunge with baggy black denim and combat boots, but it looks just as good dressed down with crisp khaki trousers and fresh white sneakers. It's the ultimate grungy streetwear piece that somehow goes with everything in my closet.
+
+Criterion 2, impossible query, Try 1:
+- stopped early: yes — No listings matched "designer ballgown", size XXS, under $5. To find something, try broader or different keywords (e.g. "jacket" instead of a specific style); drop the size or try a neighbouring one; raise your price limit.
+- selected_item: (none)
+- search_results: 0
+Trace:
+[1] parse_query
+[2] search_listings (via MCP)
+     out: [] (empty)
+
+Criterion 3, state keeps selected item, Try 1:
+[3] select_item
+     out: Vintage Linen Blazer — Cream ($38.0, thredUp)
+[4] suggest_outfit
+     in:  Vintage Linen Blazer — Cream ($38.0, thredUp)
+[5] create_fit_card
+     in:  Vintage Linen Blazer — Cream ($38.0, thredUp)
+
+Criterion 4, fit-card variation, Try 1:
+Fit card:
+Scored this 2003 tour bootleg tee for just $24 on depop and I've already worn it two ways. I love leaning into full grunge with baggy black denim and combat boots, but it looks just as good dressed down with crisp khaki trousers and fresh white sneakers. It's the ultimate grungy streetwear piece that somehow goes with everything in my closet.
+
+Criterion 5, filter checks, produced by tools.py::search_listings:
+graphic tee size M under $30 [('Y2K Baby Tee — Butterfly Print', 'S/M', 18.0), ('Mesh Long-Sleeve Top — Black', 'S/M', 15.0)]
+jacket size S [('Denim Jacket — Light Wash, Cropped', 'S', 42.0)]
+sneakers size US 9 [('Low-Top Canvas Sneakers — Off-White', 'US 9', 20.0)]
+jeans under $40 [('Baggy Carpenter Jeans — Dark Wash', 'W32', 36.0), ('Straight Leg Black Jeans — Faded', 'W28', 30.0), ("Vintage Levi's 501 Jeans — Medium Wash", 'W30 L30', 38.0)]
+hoodie size L under $30 [('Vintage Graphic Hoodie — Faded Black', 'L', 26.0)]
 
 ```
 
@@ -259,14 +296,15 @@ that produced it:
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools | 4 of 5 | MET (5/5) | All five matching-query tries returned a fit card. |
+| 2 | Impossible query stops before the second tool | 5 of 5 | MET (5/5) | All five traces stopped after the empty MCP search and named three ways to loosen the query. |
+| 3 | One item stays in session and both model tools | 5 of 5 | MET (5/5) | All five traces showed the same selected item in both model-tool inputs. |
+| 4 | Fit card meets content and variation rules | 4 of 5 plus no duplicates | MET (5/5) | All five cards were 2-4 sentences, included price and platform, avoided copied listing text, and were different. |
+| 5 | Size and price filters hold for five queries | 5 of 5 | MET (5/5) | Every returned listing in all five queries met the requested whole-token size and inclusive price rules. |
 
 **Diagnoses**
 
+- No criteria were missed in this run. The model-backed criteria did encounter rate-limit or unavailable responses in earlier exploratory runs, but the final five-try report completed all matching and fit-card scenarios.
 
 
 ---

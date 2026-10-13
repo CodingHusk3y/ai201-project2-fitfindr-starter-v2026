@@ -161,10 +161,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 )
                 trace.step(
                     "suggest_outfit",
-                    inputs={
-                        "new_item": session["selected_item"],
-                        "wardrobe_item_count": len(session["wardrobe"].get("items", [])),
-                    },
+                    inputs=session["selected_item"],
                     returned=session["outfit_suggestion"],
                 )
             except ModelUnavailable:
@@ -174,10 +171,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 )
                 trace.step(
                     "suggest_outfit",
-                    inputs={
-                        "new_item": session["selected_item"],
-                        "wardrobe_item_count": len(session["wardrobe"].get("items", [])),
-                    },
+                    inputs=session["selected_item"],
                     returned=session["error"],
                     note="model unavailable; stopping",
                 )
@@ -190,10 +184,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 )
                 trace.step(
                     "create_fit_card",
-                    inputs={
-                        "outfit": session["outfit_suggestion"],
-                        "new_item": session["selected_item"],
-                    },
+                    inputs=session["selected_item"],
                     returned=session["fit_card"],
                 )
             except ModelUnavailable:
@@ -203,10 +194,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 )
                 trace.step(
                     "create_fit_card",
-                    inputs={
-                        "outfit": session["outfit_suggestion"],
-                        "new_item": session["selected_item"],
-                    },
+                    inputs=session["selected_item"],
                     returned=session["error"],
                     note="model unavailable; stopping",
                 )

@@ -35,18 +35,50 @@ SCENARIOS = [
         "wardrobe": "empty",
         "criterion": None,
     },
-    # TODO: add what your criteria 3, 4 and 5 need.
-    #
-    # Set "criterion" to the number in criteria.md that the scenario tests.
-    # "criterion": None means a diagnostic run — useful to have, but it isn't
-    # one of your five, and run_eval.py marks it as such in the table.
-    #
-    # For a state criterion, any normal query works — what you're checking is
-    # what ends up in the session, not what the user typed.
-    #
-    # For a fit-card criterion, you probably want the SAME query listed more
-    # than once, or several different items, depending on what your criterion
-    # actually says.
+    {
+        # The session should carry this selected item through both model tools.
+        "name": "state keeps selected item",
+        "query": "vintage linen blazer under $45",
+        "wardrobe": "example",
+        "criterion": 3,
+    },
+    {
+        # The same item is run five times by run_eval.py for criterion 4.
+        "name": "fit cards vary and include item details",
+        "query": "vintage graphic tee under $30",
+        "wardrobe": "example",
+        "criterion": 4,
+    },
+    {
+        "name": "graphic tee size and price filters",
+        "query": "graphic tee size M under $30",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        "name": "jacket size filter",
+        "query": "jacket size S",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        "name": "sneakers size filter",
+        "query": "sneakers size US 9",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        "name": "jeans price filter",
+        "query": "jeans under $40",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        "name": "hoodie size and price filters",
+        "query": "hoodie size L under $30",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
 ]
 
 WARDROBES = ("example", "empty")
