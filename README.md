@@ -305,6 +305,7 @@ hoodie size L under $30 [('Vintage Graphic Hoodie — Faded Black', 'L', 26.0)]
 **Diagnoses**
 
 - No criteria were missed in this run. The model-backed criteria did encounter rate-limit or unavailable responses in earlier exploratory runs, but the final five-try report completed all matching and fit-card scenarios.
+- The targets were mostly appropriate rather than artificially low: criteria 2, 3, and 5 required 5 of 5 because they are deterministic, while criteria 1 and 4 allowed one model miss. I would tighten criterion 1 next to 5 of 5 now that the unavailable-model handler is in place; a completed run should be reliable, not merely usually successful.
 
 
 ---
@@ -362,6 +363,11 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
+I registered `search_listings` in `mcp_server.py` with its description and typed
+`description`, `size`, and `max_price` inputs. In `agent.py::run_agent`, the
+direct call became `mcp_client.call_tool("search_listings", ...)`; the returned
+value stayed a `list[dict]`, so the empty-search branch and the selected item
+behaved the same. The trace shows the new step as `search_listings (via MCP)`.
 
 
 ---
@@ -371,6 +377,21 @@ full. -->
 - **Empty search:** The impossible query stopped after `search_listings (via MCP)` and told the user to broaden keywords, change or drop the size, and raise the price limit.
 - **Empty wardrobe:** The empty-wardrobe query returned non-empty general styling advice from `suggest_outfit`, without naming wardrobe items. A later unavailable model call returned a readable error instead of a traceback.
 - **Model unavailable:** The handler reports which model-backed step failed and tells the user to check the API key or network connection, then try again.
+
+**Unit 4 AI use**
+
+- *What I asked for:* I asked Claude to help turn the five acceptance criteria
+     into executable entries in `scenarios.py` and to check whether the trace made
+     the state criterion observable.
+- *What came back:* The first evaluation showed that the selected item was
+     correct, but the trace only printed nested dictionary keys for the two model
+     tools, so it did not expose the title, price, and platform needed by criterion
+     3.
+- *What I changed:* I changed those trace inputs to print the selected listing
+     directly, reran all ten scenarios five times with caching off, and used the
+     regenerated report to score the criteria. I also added readable
+     `ModelUnavailable` handlers after the failure-mode runs showed that provider
+     outages otherwise ended the session with an unhelpful error.
 
 
 ## The Improvement
@@ -404,7 +425,24 @@ full. -->
 ---
 
 ## What's Still Broken
+No criterion is still missed, so there are no criterion-specific fixes to
+report. The remaining risks are operational rather than failures in this run:
 
+- A provider outage or rate-limit failure can still stop a model-backed run
+     before it returns a fit card. The handler now identifies the failed step and
+     tells the user to check the key or connection, but it does not invent a fit
+     card or retry indefinitely. I stopped there because all five criteria met
+     their targets and a graceful stop is safer than burning quota in a loop.
+- The CLI still requires Python 3.12 in the activated `.venv` and a valid
+     `GEMINI_API_KEY` in `.env`. I did not hide those setup failures in code; the
+     environment check already reports them directly.
+- The evaluation report records the raw runs but does not score model output
+     automatically. I stopped there because the rubric requires the criteria to
+     be judged against their written targets, including sentence count and card
+     variation.
+
+**Repository URL for submission:**
+https://github.com/CodingHusk3y/ai201-project2-fitfindr-starter-v2026
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
