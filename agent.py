@@ -119,6 +119,11 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         if not session["parsed"]:
             session["parsed"] = parse_query(query)
+            trace.step(
+                "parse_query",
+                inputs={"query": query},
+                returned=session["parsed"],
+            )
 
         elif not session["search_results"]:
             parsed = session["parsed"]
@@ -127,6 +132,15 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 "size": parsed["size"],
                 "max_price": parsed["max_price"],
             })
+            trace.step(
+                "search_listings (via MCP)",
+                inputs={
+                    "description": parsed["description"],
+                    "size": parsed["size"],
+                    "max_price": parsed["max_price"],
+                },
+                returned=session["search_results"],
+            )
             # The branch: nothing to style, so stop before suggest_outfit.
             if not session["search_results"]:
                 session["error"] = _no_results_message(parsed)
@@ -134,16 +148,69 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         elif session["selected_item"] is None:
             session["selected_item"] = session["search_results"][0]
+            trace.step(
+                "select_item",
+                inputs={"result_count": len(session["search_results"])},
+                returned=session["selected_item"],
+            )
 
         elif session["outfit_suggestion"] is None:
-            session["outfit_suggestion"] = suggest_outfit(
-                session["selected_item"], session["wardrobe"]
-            )
+            try:
+                session["outfit_suggestion"] = suggest_outfit(
+                    session["selected_item"], session["wardrobe"]
+                )
+                trace.step(
+                    "suggest_outfit",
+                    inputs={
+                        "new_item": session["selected_item"],
+                        "wardrobe_item_count": len(session["wardrobe"].get("items", [])),
+                    },
+                    returned=session["outfit_suggestion"],
+                )
+            except ModelUnavailable:
+                session["error"] = (
+                    "The model was unavailable while creating outfit suggestions. "
+                    "Check your API key or network connection, then try again."
+                )
+                trace.step(
+                    "suggest_outfit",
+                    inputs={
+                        "new_item": session["selected_item"],
+                        "wardrobe_item_count": len(session["wardrobe"].get("items", [])),
+                    },
+                    returned=session["error"],
+                    note="model unavailable; stopping",
+                )
+                return session
 
         elif session["fit_card"] is None:
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
-            )
+            try:
+                session["fit_card"] = create_fit_card(
+                    session["outfit_suggestion"], session["selected_item"]
+                )
+                trace.step(
+                    "create_fit_card",
+                    inputs={
+                        "outfit": session["outfit_suggestion"],
+                        "new_item": session["selected_item"],
+                    },
+                    returned=session["fit_card"],
+                )
+            except ModelUnavailable:
+                session["error"] = (
+                    "The model was unavailable while writing the fit card. "
+                    "Check your API key or network connection, then try again."
+                )
+                trace.step(
+                    "create_fit_card",
+                    inputs={
+                        "outfit": session["outfit_suggestion"],
+                        "new_item": session["selected_item"],
+                    },
+                    returned=session["error"],
+                    note="model unavailable; stopping",
+                )
+                return session
 
         else:
             return session

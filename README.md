@@ -287,10 +287,34 @@ that produced it:
 
 ```
 
+[1] parse_query
+     in:  dict with keys: query
+     out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+     in:  dict with keys: description, size, max_price
+     out: 4 items: Vintage Linen Blazer - Cream, Straight Leg Khaki Trousers - Olive, Wide-Leg Linen Trousers - Natural ... +1 more
+[3] select_item
+     in:  dict with keys: result_count
+     out: Vintage Linen Blazer - Cream ($38.0, thredUp)
+[4] suggest_outfit
+     in:  dict with keys: new_item, wardrobe_item_count
+     out: Outfit one pairs the Vintage Linen Blazer - Cream with the white ribbed tank top tucked into the wide-leg khaki trousers, finished with the brown leather belt, black crossbody bag, and chunky white sneakers.
+[5] create_fit_card
+     in:  dict with keys: outfit, new_item
+     out: Scored this vintage linen blazer for just $38 on thredUp and I'm obsessed with how versatile it is. I've been wearing it non-stop...
+
 ```
 
 **Empty search**
 
+[1] parse_query
+     in:  dict with keys: query
+     out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+     in:  dict with keys: description, size, max_price
+     out: [] (empty)
+
+  No listings matched "quantum teleportation jacket", size ZZZ, under $0.01. To find something, try broader or different keywords; drop the size or try a neighbouring one; raise your price limit.
 ```
 
 ```
@@ -303,6 +327,13 @@ full. -->
 
 
 ---
+
+**Failure-mode checks**
+
+- **Empty search:** The impossible query stopped after `search_listings (via MCP)` and told the user to broaden keywords, change or drop the size, and raise the price limit.
+- **Empty wardrobe:** The empty-wardrobe query returned non-empty general styling advice from `suggest_outfit`, without naming wardrobe items. A later unavailable model call returned a readable error instead of a traceback.
+- **Model unavailable:** The handler reports which model-backed step failed and tells the user to check the API key or network connection, then try again.
+
 
 ## The Improvement
 
